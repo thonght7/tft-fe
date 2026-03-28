@@ -20,11 +20,13 @@ const form = reactive({
 const loading = ref(false)
 const errorMsg = ref<string | null>(null)
 
+const { t } = useI18nLite()
+
 async function submit() {
   errorMsg.value = null
   const parsed = schema.safeParse(form)
   if (!parsed.success) {
-    errorMsg.value = parsed.error.issues[0]?.message ?? 'Invalid form'
+    errorMsg.value = parsed.error.issues[0]?.message ?? t('auth.invalidForm')
     return
   }
 
@@ -47,7 +49,7 @@ async function submit() {
     await navigateTo(next)
   } catch (e: unknown) {
     const err = e as { data?: { message?: string } }
-    errorMsg.value = err?.data?.message ?? 'Login failed'
+    errorMsg.value = err?.data?.message ?? t('auth.loginFailed')
   } finally {
     loading.value = false
   }
@@ -56,15 +58,15 @@ async function submit() {
 
 <template>
   <div class="card" style="max-width: 520px; margin: 0 auto">
-    <h2 style="margin-top: 0">Login</h2>
+    <h2 style="margin-top: 0">{{ t('auth.loginTitle') }}</h2>
 
     <div class="grid">
       <div>
-        <div class="label">Email</div>
-        <input v-model="form.email" class="input" type="email" placeholder="you@email.com" />
+        <div class="label">{{ t('auth.email') }}</div>
+        <input v-model="form.email" class="input" type="email" placeholder="ban@email.com" />
       </div>
       <div>
-        <div class="label">Password</div>
+        <div class="label">{{ t('auth.password') }}</div>
         <input v-model="form.password" class="input" type="password" placeholder="••••••••" />
       </div>
 
@@ -73,12 +75,12 @@ async function submit() {
       </div>
 
       <button class="btn primary" :disabled="loading" @click="submit">
-        {{ loading ? 'Signing in…' : 'Sign in' }}
+        {{ loading ? t('auth.signingIn') : t('auth.signIn') }}
       </button>
 
       <div class="help">
-        Chưa có tài khoản?
-        <NuxtLink to="/register" style="text-decoration: underline">Đăng ký</NuxtLink>
+        {{ t('auth.noAccount') }}
+        <NuxtLink to="/register" style="text-decoration: underline">{{ t('auth.registerCta') }}</NuxtLink>
       </div>
     </div>
   </div>

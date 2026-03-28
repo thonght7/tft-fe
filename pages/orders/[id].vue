@@ -37,9 +37,7 @@ async function load() {
       method: 'POST'
     })
 
-    progress.value = await fetch<ProgressUpdateResponse[]>(`/api/tracking/orders/${order.value.id}/progress`, {
-      auth: false
-    })
+    progress.value = await fetch<ProgressUpdateResponse[]>(`/api/tracking/orders/${order.value.id}/progress`)
   } catch (e: unknown) {
     const err = e as { data?: { message?: string } }
     errorMsg.value = err?.data?.message ?? 'Failed to load order'

@@ -32,6 +32,7 @@ export { computedAsync, asyncComputed, computedEager, eagerComputed, computedInj
 export { definePageMeta } from '../node_modules/nuxt/dist/pages/runtime/composables';
 export { defineLazyHydrationComponent } from '#app/composables/lazy-hydration';
 export { useApi } from '../composables/useApi';
+export { useI18nLite } from '../composables/useI18nLite';
 export { formatDateTime } from '../utils/dates';
 export { RANKS, rankLabel } from '../utils/ranks';
 export { useAuthStore } from '../stores/auth';

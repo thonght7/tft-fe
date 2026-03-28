@@ -234,6 +234,7 @@ declare global {
   const useHead: typeof import('../../node_modules/nuxt/dist/app/composables/head').useHead
   const useHeadSafe: typeof import('../../node_modules/nuxt/dist/app/composables/head').useHeadSafe
   const useHydration: typeof import('../../node_modules/nuxt/dist/app/composables/hydrate').useHydration
+  const useI18nLite: typeof import('../../composables/useI18nLite').useI18nLite
   const useId: typeof import('../../node_modules/vue').useId
   const useIdle: typeof import('../../node_modules/@vueuse/core').useIdle
   const useInfiniteScroll: typeof import('../../node_modules/@vueuse/core').useInfiniteScroll
@@ -652,6 +653,7 @@ declare module 'vue' {
     readonly useHead: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/head')['useHead']>
     readonly useHeadSafe: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/head')['useHeadSafe']>
     readonly useHydration: UnwrapRef<typeof import('../../node_modules/nuxt/dist/app/composables/hydrate')['useHydration']>
+    readonly useI18nLite: UnwrapRef<typeof import('../../composables/useI18nLite')['useI18nLite']>
     readonly useId: UnwrapRef<typeof import('../../node_modules/vue')['useId']>
     readonly useIdle: UnwrapRef<typeof import('../../node_modules/@vueuse/core')['useIdle']>
     readonly useInfiniteScroll: UnwrapRef<typeof import('../../node_modules/@vueuse/core')['useInfiniteScroll']>

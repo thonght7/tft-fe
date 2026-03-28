@@ -15,6 +15,13 @@ type LazyComponent<T> = DefineComponent<HydrationStrategies, {}, {}, {}, {}, {},
 
 interface _GlobalComponents {
   AppHero: typeof import("../../components/AppHero.vue")['default']
+  UiFaq: typeof import("../../components/UiFaq.vue")['default']
+  UiFeatureCard: typeof import("../../components/UiFeatureCard.vue")['default']
+  UiFooter: typeof import("../../components/UiFooter.vue")['default']
+  UiReviewCard: typeof import("../../components/UiReviewCard.vue")['default']
+  UiSection: typeof import("../../components/UiSection.vue")['default']
+  UiStars: typeof import("../../components/UiStars.vue")['default']
+  UiTopbar: typeof import("../../components/UiTopbar.vue")['default']
   NuxtWelcome: typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']
   NuxtLayout: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
   NuxtErrorBoundary: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
@@ -39,6 +46,13 @@ interface _GlobalComponents {
   Body: typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Body']
   NuxtIsland: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-island")['default']
   LazyAppHero: LazyComponent<typeof import("../../components/AppHero.vue")['default']>
+  LazyUiFaq: LazyComponent<typeof import("../../components/UiFaq.vue")['default']>
+  LazyUiFeatureCard: LazyComponent<typeof import("../../components/UiFeatureCard.vue")['default']>
+  LazyUiFooter: LazyComponent<typeof import("../../components/UiFooter.vue")['default']>
+  LazyUiReviewCard: LazyComponent<typeof import("../../components/UiReviewCard.vue")['default']>
+  LazyUiSection: LazyComponent<typeof import("../../components/UiSection.vue")['default']>
+  LazyUiStars: LazyComponent<typeof import("../../components/UiStars.vue")['default']>
+  LazyUiTopbar: LazyComponent<typeof import("../../components/UiTopbar.vue")['default']>
   LazyNuxtWelcome: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
   LazyNuxtLayout: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
   LazyNuxtErrorBoundary: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>

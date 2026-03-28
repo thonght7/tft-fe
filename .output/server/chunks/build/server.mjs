@@ -421,19 +421,29 @@ function toArray$1(value) {
 }
 const _routes = [
   {
+    name: "faq",
+    path: "/faq",
+    component: () => import('./faq-DbpKls5Z.mjs')
+  },
+  {
     name: "index",
     path: "/",
-    component: () => import('./index-EPRxpyN1.mjs')
+    component: () => import('./index-C9WwJnGT.mjs')
   },
   {
     name: "login",
     path: "/login",
-    component: () => import('./login-Cw4SSzeX.mjs')
+    component: () => import('./login-s4F5gzh7.mjs')
   },
   {
     name: "boosters",
     path: "/boosters",
     component: () => import('./boosters-DF3lNzz9.mjs')
+  },
+  {
+    name: "policies",
+    path: "/policies",
+    component: () => import('./policies-CoknOtIc.mjs')
   },
   {
     name: "register",
@@ -928,7 +938,7 @@ const plugins = [
   components_plugin_z4hgvsiddfKkfXTP6M8M4zG5Cb7sGnDhcryKVM45Di4
 ];
 const layouts = {
-  default: defineAsyncComponent(() => import('./default-DaFmCCPH.mjs').then((m) => m.default || m))
+  default: defineAsyncComponent(() => import('./default-RO3nbmGy.mjs').then((m) => m.default || m))
 };
 const routeRulesMatcher = _routeRulesMatcher;
 const LayoutLoader = defineComponent({
