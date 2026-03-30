@@ -423,17 +423,17 @@ const _routes = [
   {
     name: "faq",
     path: "/faq",
-    component: () => import('./faq-DbpKls5Z.mjs')
+    component: () => import('./faq-C1F7FttU.mjs')
   },
   {
     name: "index",
     path: "/",
-    component: () => import('./index-C9WwJnGT.mjs')
+    component: () => import('./index-Dk9ZQ6Rp.mjs')
   },
   {
     name: "login",
     path: "/login",
-    component: () => import('./login-s4F5gzh7.mjs')
+    component: () => import('./login-Cnpz00MQ.mjs')
   },
   {
     name: "boosters",
@@ -443,7 +443,7 @@ const _routes = [
   {
     name: "policies",
     path: "/policies",
-    component: () => import('./policies-CoknOtIc.mjs')
+    component: () => import('./policies-BEOqZQ86.mjs')
   },
   {
     name: "register",
@@ -453,7 +453,7 @@ const _routes = [
   {
     name: "order-new",
     path: "/order/new",
-    component: () => import('./new-B9ybkOfQ.mjs')
+    component: () => import('./new-5YfRJjQr.mjs')
   },
   {
     name: "orders-id",
@@ -468,7 +468,7 @@ const _routes = [
   {
     name: "booster-register",
     path: "/booster/register",
-    component: () => import('./register-KPRXMr2t.mjs')
+    component: () => import('./register-CRguno2f.mjs')
   }
 ];
 const _wrapInTransition = (props, children) => {
@@ -938,7 +938,7 @@ const plugins = [
   components_plugin_z4hgvsiddfKkfXTP6M8M4zG5Cb7sGnDhcryKVM45Di4
 ];
 const layouts = {
-  default: defineAsyncComponent(() => import('./default-RO3nbmGy.mjs').then((m) => m.default || m))
+  default: defineAsyncComponent(() => import('./default-CkJH4TWe.mjs').then((m) => m.default || m))
 };
 const routeRulesMatcher = _routeRulesMatcher;
 const LayoutLoader = defineComponent({

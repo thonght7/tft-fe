@@ -1,0 +1,111 @@
+Tôi cần bạn xây dựng một UI web giống như trang "TFT Boost Purchase" (ảnh đính kèm).
+
+Yêu cầu kỹ thuật:
+- Framework: Nuxt 3 (Vue 3) + TailwindCSS
+- Component-based (tách nhỏ rõ ràng)
+- Responsive (mobile + desktop)
+- Clean code, dễ maintain
+
+=====================
+🎯 CHỨC NĂNG CHÍNH
+=====================
+
+1. Purchase Tabs (Carousel)
+- Tabs gồm:
+  - Division
+  - Wins/Games
+  - Placements
+  - Normals
+- Có scroll ngang (dùng Swiper hoặc custom)
+- Tab active có highlight
+
+2. Current Rank Section
+- Hiển thị list rank:
+  Iron → Bronze → Silver → Gold → Platinum → Emerald → Diamond → Master
+- Click chọn rank (active có glow + border)
+- Chọn division: IV, III, II, I
+- Dropdown:
+  - Current LP (0–20 LP, 20–40 LP...)
+  - Server (Vietnam, NA, EU...)
+
+3. Desired Rank Section
+- Logic:
+  - Chỉ cho chọn rank cao hơn current rank
+- UI giống Current Rank
+- Disable các rank thấp hơn
+
+4. Checkout Panel (Right side)
+Hiển thị:
+- Current → Target (VD: Platinum I → Emerald IV)
+- Estimated time (hardcode hoặc tính sau)
+- Toggle:
+  - Solo / Double Up
+- Add-ons:
+  - Priority Order (+25%)
+  - Live Stream (+15%)
+
+5. Price Calculation (IMPORTANT)
+- Giá base dựa vào:
+  currentRank → targetRank
+- Nếu bật option:
+  - Priority: +25%
+  - Stream: +15%
+- Hiển thị:
+  - Giá gốc (gạch ngang)
+  - Giá sau discount
+
+6. CTA
+- Button "Checkout"
+- Button "Pay with PayPal"
+
+=====================
+🎨 UI / UX
+=====================
+- Dark theme (bg: #0B0C14 / #10101A)
+- Neon accent (blue / green)
+- Card style:
+  - border nhẹ
+  - glow khi active
+- Hover:
+  - scale nhẹ
+  - translateY
+
+=====================
+🧱 COMPONENT STRUCTURE
+=====================
+- components/
+  - PurchaseTabs.vue
+  - RankSelector.vue
+  - DivisionSelector.vue
+  - CheckoutPanel.vue
+  - ToggleSwitch.vue
+  - PriceSummary.vue
+
+=====================
+🧠 STATE MANAGEMENT
+=====================
+Dùng:
+- Pinia hoặc composable
+
+State gồm:
+- currentRank
+- currentDivision
+- desiredRank
+- desiredDivision
+- selectedOptions (priority, stream)
+- server
+- LP
+
+=====================
+⚙️ BONUS (nếu làm được)
+=====================
+- Animate khi chọn rank
+- Smooth transition
+- Fake API tính giá
+
+=====================
+OUTPUT
+=====================
+- Code đầy đủ component
+- Không cần backend
+- Mock data là được

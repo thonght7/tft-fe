@@ -139,7 +139,7 @@ async function addProgress() {
             </div>
           </div>
 
-          <div class="card" v-if="payment">
+          <div v-if="payment" class="card">
             <div class="help">Payment</div>
             <div style="margin-top: 8px" class="row">
               <div>

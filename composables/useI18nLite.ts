@@ -2,8 +2,13 @@ import { vi } from '~/locales/vi'
 
 type Dict = typeof vi
 
-function get(obj: any, path: string): unknown {
-  return path.split('.').reduce((acc, key) => (acc && typeof acc === 'object' ? acc[key] : undefined), obj)
+type UnknownRecord = Record<string, unknown>
+
+function get(obj: unknown, path: string): unknown {
+  return path.split('.').reduce<unknown>((acc, key) => {
+    if (acc && typeof acc === 'object') return (acc as UnknownRecord)[key]
+    return undefined
+  }, obj)
 }
 
 export function useI18nLite() {

@@ -1,128 +1,303 @@
 <script setup lang="ts">
-import { RANKS } from '~/utils/ranks'
-import type { CalculatePriceResponse, OrderResponse, Rank } from '~/types/domain'
+import type { PurchaseTab } from '~/utils/boostPricing'
+import type { TierName, Division } from '~/utils/rankTiers'
+import { TIER_OPTIONS, tierIndex, divisionIndex } from '~/utils/rankTiers'
 
-const { fetch } = useApi()
+const store = useBoostPurchaseStore()
 
-const GAME = 'tft_ranked'
+const tabs = [
+  { id: 'division' as const, label: 'Division' },
+  { id: 'wins' as const, label: 'Wins/Games' },
+  { id: 'placements' as const, label: 'Placements' },
+  { id: 'normals' as const, label: 'Normals' }
+]
 
-const currentRank = ref<Rank>('Bạc I')
-const targetRank = ref<Rank>('Vàng IV')
-const price = ref<number | null>(null)
+// Local-only divisions removed: now bind to store.
 
-const loadingPrice = ref(false)
-const creating = ref(false)
-const errorMsg = ref<string | null>(null)
+const servers = ['Vietnam', 'NA', 'EUW', 'EUNE', 'KR'] as const
 
-watch([currentRank, targetRank], async () => {
-  price.value = null
-  errorMsg.value = null
+const errorText = computed(() => store.validationMessage)
 
-  loadingPrice.value = true
-  try {
-    const res = await fetch<CalculatePriceResponse>('/api/pricing/calculate-price', {
-      method: 'POST',
-      body: {
-        game: GAME,
-        currentRank: currentRank.value,
-        targetRank: targetRank.value
-      },
-      auth: false
-    })
-    price.value = Number(res.price)
-  } catch (e: unknown) {
-    const err = e as { data?: { message?: string } }
-    errorMsg.value = err?.data?.message ?? 'Failed to calculate price'
-  } finally {
-    loadingPrice.value = false
+onMounted(() => {
+  // Ensure initial price exists.
+  store.recalcPrice()
+})
+
+function onTabChange(v: PurchaseTab) {
+  store.setTab(v)
+}
+
+function createDraftCheckout() {
+  // UI-only (no API calls for now).
+  alert('Checkout (UI only).')
+}
+
+const currentTierIdx = computed(() => tierIndex(store.currentTier))
+
+function isDesiredTierDisabled(tier: TierName) {
+  // Only disable tiers strictly below the current tier.
+  if (tierIndex(tier) < currentTierIdx.value) return true
+
+  // If current tier has divisions and user is already at Division I,
+  // disallow choosing the same tier for Desired (since no higher division exists).
+  const curOpt = TIER_OPTIONS.find((t) => t.id === store.currentTier)
+  if (curOpt?.hasDivisions && store.currentDivision === 'I') {
+    return tier === store.currentTier
   }
-}, { immediate: true })
 
-async function createOrder() {
-  errorMsg.value = null
-  if (price.value == null) {
-    errorMsg.value = 'Price not available'
-    return
-  }
+  return false
+}
 
-  creating.value = true
-  try {
-    const order = await fetch<OrderResponse>('/api/orders', {
-      method: 'POST',
-      body: {
-        currentRank: currentRank.value,
-        targetRank: targetRank.value,
-        price: price.value
-      }
-    })
-    await navigateTo(`/orders/${order.id}`)
-  } catch (e: unknown) {
-    const err = e as { data?: { message?: string } }
-    errorMsg.value = err?.data?.message ?? 'Failed to create order'
-  } finally {
-    creating.value = false
-  }
+function isDesiredDivisionDisabled(div: Division): boolean {
+  if (store.currentTier !== store.desiredTier) return false
+  if (store.isDesiredMasterPlus) return true
+  // Only allow divisions strictly higher than current (I higher than II/III/IV)
+  return divisionIndex(div) >= divisionIndex(store.currentDivision)
+}
+
+function onApplyDiscount(code: string) {
+  // UI-only for now.
+  if (!code) return
+  alert(`Apply discount: ${code}`)
 }
 </script>
 
 <template>
-  <div class="grid" style="grid-template-columns: 0.9fr 1.1fr">
-    <div class="card">
-      <h2 style="margin-top: 0">Create boost order</h2>
-      <p class="help">Pricing backend: <code>/api/pricing/calculate-price</code> (game={{ GAME }}).</p>
+  <div class="purchase">
+    <div class="grid left">
+      <div class="card hero" style="padding: 18px">
+        <div class="badge">TFT BOOST</div>
+        <h1 class="h1" style="margin: 10px 0 6px">Boost Purchase</h1>
+        <p class="help" style="margin: 0">Select your current rank, desired rank and add-ons.</p>
+      </div>
 
-      <div class="row" style="margin-top: 12px">
-        <div>
-          <div class="label">Current rank</div>
-          <select v-model="currentRank" class="input">
-            <option v-for="r in RANKS" :key="r.key" :value="r.key">{{ r.label }}</option>
+      <PurchaseTabs :model-value="store.tab" :tabs="tabs" @update:model-value="onTabChange" />
+
+      <!-- PLACEMENTS TAB (max 5 games) -->
+      <template v-if="store.tab === 'placements'">
+        <RankSelector
+          title="Last Split Rank"
+          :model-value="store.lastSplitRank"
+          :hide-divisions="true"
+          @update:model-value="store.setLastSplitRank"
+        />
+
+        <div class="card" style="padding: 18px">
+          <div class="sectionTitle">
+            <div class="t">Server</div>
+            <div class="d">Choose region</div>
+          </div>
+          <select v-model="store.server" class="input">
+            <option v-for="s in servers" :key="s" :value="s">{{ s }}</option>
           </select>
         </div>
-        <div>
-          <div class="label">Target rank</div>
-          <select v-model="targetRank" class="input">
-            <option v-for="r in RANKS" :key="r.key" :value="r.key">{{ r.label }}</option>
-          </select>
+
+        <GamesSlider :model-value="store.placementsGames" :min="1" :max="5" :step="1" label="Number of Games" @update:model-value="store.setPlacementsGames" />
+
+        <div class="card" style="padding: 12px; border-color: rgba(0, 170, 255, .35)">
+          <div class="help" style="font-weight: 800; color: var(--text)">
+            Placement matches are limited to 5 games at the start of the season.
+          </div>
         </div>
-      </div>
+      </template>
 
-      <div style="margin-top: 12px" class="card">
-        <div class="help">Estimated price</div>
-        <div style="font-size: 26px; font-weight: 800; margin-top: 6px">
-          <span v-if="loadingPrice">Calculating…</span>
-          <span v-else-if="price != null">{{ price.toLocaleString() }} VND</span>
-          <span v-else>—</span>
+      <!-- WINS/GAMES TAB (matches screenshot) -->
+      <template v-else-if="store.tab === 'wins'">
+        <div class="card">
+          <div class="sectionTitle">
+            <div class="t">Current Rank</div>
+            <div class="d">Select your current tier and division.</div>
+          </div>
+
+          <TierSelect :model-value="store.currentTier" :options="TIER_OPTIONS" @update:model-value="store.setCurrentTier" />
+
+          <div class="row" style="margin-top: 14px">
+            <div v-if="store.isCurrentMasterPlus" style="flex:1">
+              <div class="label">Current LP range</div>
+              <select
+                :value="store.masterLpRange"
+                class="input"
+                @change="store.setMasterLpRange(($event.target as HTMLSelectElement).value as any)"
+              >
+                <option value="0-20">0-20 LP</option>
+                <option value="21-40">21-40 LP</option>
+                <option value="41-60">41-60 LP</option>
+                <option value="61-80">61-80 LP</option>
+                <option value="81-100">81-100 LP</option>
+              </select>
+            </div>
+
+            <div v-else style="flex:1">
+              <div class="label">Division</div>
+              <DivisionSelector :model-value="store.currentDivision" @update:model-value="store.setCurrentDivision" />
+            </div>
+
+            <div style="flex:1">
+              <div class="label">Avg. LP per win</div>
+              <select v-model="store.avgLpPerWin" class="input">
+                <option value="18-23">18-23 LP</option>
+                <option value="23-28">23-28 LP</option>
+                <option value="28-33">28-33 LP</option>
+              </select>
+            </div>
+
+            <div style="flex:1.2">
+              <div class="label">Server</div>
+              <select v-model="store.server" class="input">
+                <option v-for="s in servers" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div v-if="errorMsg" class="card" style="margin-top: 12px; border-color: rgba(255,77,77,.4)">
-        {{ errorMsg }}
-      </div>
+        <WinsSlider :model-value="store.winsCount" label="Number of Wins" :min="1" :max="25" :step="1" @update:model-value="store.setWinsCount" />
 
-      <button class="btn primary" style="margin-top: 12px" :disabled="creating || loadingPrice || price == null" @click="createOrder">
-        {{ creating ? 'Creating…' : 'Create order' }}
-      </button>
+        <div class="card" style="padding: 14px">
+          <div class="row" style="align-items:center; justify-content:space-between">
+            <div style="font-weight:900">What happens if a game is lost during my Wins?</div>
+            <div class="badge">FAQ</div>
+          </div>
+          <p class="help" style="margin: 10px 0 0; line-height: 1.55">
+            Your order is based on guaranteed wins, not games played. Each loss simply becomes an extra win added to your order,
+            and we keep playing until every guaranteed win has been fully delivered.
+          </p>
+        </div>
 
-      <div class="help" style="margin-top: 10px">
-        Order create backend: <code>POST /api/orders</code> (requires price).
-      </div>
+        <div class="card" style="padding: 12px; border-color: rgba(0, 170, 255, .35)">
+          <div class="help" style="font-weight: 800; color: var(--text)">
+            Set 16: Lore and Legends is in progress! Get your boost today and take advantage of our premium service.
+          </div>
+        </div>
+      </template>
+
+      <!-- NORMALS TAB (games only, no rank) -->
+      <template v-else-if="store.tab === 'normals'">
+        <div class="card">
+          <div class="sectionTitle">
+            <div class="t">Select Games</div>
+            <div class="d">Choose the number of games for your normal boost.</div>
+          </div>
+
+          <div style="margin-top: 14px">
+            <div class="label">Server</div>
+            <select v-model="store.server" class="input">
+              <option v-for="s in servers" :key="s" :value="s">{{ s }}</option>
+            </select>
+          </div>
+        </div>
+
+        <GamesSlider :model-value="store.normalsGames" :min="1" :max="300" :step="1" label="Number of Games" @update:model-value="store.setNormalsGames" />
+
+        <div class="card" style="padding: 12px; border-color: rgba(0, 170, 255, .35)">
+          <div class="help" style="font-weight: 800; color: var(--text)">
+            Normal games are played to help you practice and improve. They do not affect your rank.
+          </div>
+        </div>
+      </template>
+
+      <!-- DIVISION TAB (existing layout) -->
+      <template v-else>
+        <!-- Tier + bậc full width; then (LP control | Server) split 1/2; Desired below -->
+        <div class="grid">
+          <div class="card">
+            <div class="sectionTitle">
+              <div class="t">Current Rank</div>
+              <div class="d">Select your current tier and division.</div>
+            </div>
+
+            <TierSelect :model-value="store.currentTier" :options="TIER_OPTIONS" @update:model-value="store.setCurrentTier" />
+
+            <div style="margin-top: 12px">
+              <DivisionSelector v-if="!store.isCurrentMasterPlus" :model-value="store.currentDivision" @update:model-value="store.setCurrentDivision" />
+            </div>
+
+            <div class="rangeServerRow" style="margin-top: 12px">
+              <div>
+                <template v-if="!store.isCurrentMasterPlus">
+                  <div class="label">Current LP range</div>
+                  <select
+                    :value="store.masterLpRange"
+                    class="input"
+                    @change="store.setMasterLpRange(($event.target as HTMLSelectElement).value as any)"
+                  >
+                    <option value="0-20">0-20 LP</option>
+                    <option value="21-40">21-40 LP</option>
+                    <option value="41-60">41-60 LP</option>
+                    <option value="61-80">61-80 LP</option>
+                    <option value="81-100">81-100 LP</option>
+                  </select>
+                </template>
+
+                <template v-else>
+                  <LpStepper :model-value="store.currentLp" label="Current LP" :min="0" :max="1400" :step="1" @update:model-value="store.setCurrentLp" />
+                </template>
+              </div>
+
+              <div>
+                <div class="label">Server</div>
+                <select v-model="store.server" class="input">
+                  <option v-for="s in servers" :key="s" :value="s">{{ s }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="sectionTitle">
+              <div class="t">Desired Rank</div>
+              <div class="d">Select your desired tier and division.</div>
+            </div>
+            <TierSelect :model-value="store.desiredTier" :options="TIER_OPTIONS" :is-disabled="isDesiredTierDisabled" @update:model-value="store.setDesiredTier" />
+
+            <div class="halfRow" style="margin-top: 12px">
+              <div>
+                <DivisionSelector
+                  v-if="!store.isDesiredMasterPlus"
+                  :model-value="store.desiredDivision"
+                  :is-disabled="isDesiredDivisionDisabled"
+                  @update:model-value="store.setDesiredDivision"
+                />
+                <LpStepper v-else :model-value="store.desiredLp" label="Desired LP" :min="0" :max="1400" :step="1" @update:model-value="store.setDesiredLp" />
+              </div>
+              <div />
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
 
-    <div class="grid">
-      <div class="card">
-        <div class="badge">Add-ons (coming)</div>
-        <h3 style="margin: 10px 0 6px">Queue priority</h3>
-        <p class="help">Mô phỏng gói add-on như các site boost: ưu tiên, stream, duo…</p>
-      </div>
-
-      <div class="card">
-        <div class="badge">Guarantees</div>
-        <ul style="margin: 10px 0 0; padding-left: 18px; color: var(--muted)">
-          <li>Không chia sẻ account ra bên ngoài</li>
-          <li>Chủ động cập nhật tiến độ</li>
-          <li>Hoàn tiền nếu không thực hiện</li>
-        </ul>
-      </div>
-    </div>
+    <CheckoutPanel
+      :tab="store.tab"
+      :wins-count="store.winsCount"
+      :games-count="store.tab === 'placements' ? store.placementsGames : store.tab === 'normals' ? store.normalsGames : 0"
+      :current-rank="store.tab === 'placements' ? store.lastSplitRank : store.currentRank"
+      :desired-rank="store.desiredRank"
+      :current-lp="store.isCurrentMasterPlus ? store.currentLp : undefined"
+      :desired-lp="store.isDesiredMasterPlus ? store.desiredLp : undefined"
+      :price="store.price"
+      :can-checkout="(store.tab === 'wins' ? store.winsCount > 0 : store.tab === 'placements' ? store.placementsGames > 0 : store.tab === 'normals' ? store.normalsGames > 0 : store.isValid) && !!store.price"
+      :error-text="errorText"
+      :show-queue-and-addons="store.tab === 'division'"
+      :queue="store.queue"
+      :options="store.options"
+      @update:queue="store.setQueue"
+      @toggle-option="store.toggleOption"
+      @apply-discount="onApplyDiscount"
+      @checkout="createDraftCheckout"
+      @paypal="createDraftCheckout"
+    />
   </div>
 </template>
+
+<style scoped>
+.purchase{display:grid; gap:16px; grid-template-columns: 1.35fr .85fr; align-items:start}
+
+.rangeServerRow{display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start}
+.halfRow{display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start}
+
+@media (max-width: 980px){
+  .purchase{grid-template-columns: 1fr}
+  .rangeServerRow{grid-template-columns: 1fr}
+  .halfRow{grid-template-columns: 1fr}
+}
+</style>

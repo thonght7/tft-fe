@@ -12,8 +12,7 @@ const schema = z.object({
 })
 
 const form = reactive({
-  currentRank: 'GOLD' as Rank,
-  winrate: 55
+  currentRank: 'GOLD' as Rank,  winrate: 55
 })
 
 const loading = ref(false)

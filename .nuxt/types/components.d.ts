@@ -15,6 +15,16 @@ type LazyComponent<T> = DefineComponent<HydrationStrategies, {}, {}, {}, {}, {},
 
 interface _GlobalComponents {
   AppHero: typeof import("../../components/AppHero.vue")['default']
+  CheckoutPanel: typeof import("../../components/CheckoutPanel.vue")['default']
+  DivisionSelector: typeof import("../../components/DivisionSelector.vue")['default']
+  GamesSlider: typeof import("../../components/GamesSlider.vue")['default']
+  LpStepper: typeof import("../../components/LpStepper.vue")['default']
+  NormalsSlider: typeof import("../../components/NormalsSlider.vue")['default']
+  PriceSummary: typeof import("../../components/PriceSummary.vue")['default']
+  PurchaseTabs: typeof import("../../components/PurchaseTabs.vue")['default']
+  RankSelector: typeof import("../../components/RankSelector.vue")['default']
+  TierSelect: typeof import("../../components/TierSelect.vue")['default']
+  ToggleSwitch: typeof import("../../components/ToggleSwitch.vue")['default']
   UiFaq: typeof import("../../components/UiFaq.vue")['default']
   UiFeatureCard: typeof import("../../components/UiFeatureCard.vue")['default']
   UiFooter: typeof import("../../components/UiFooter.vue")['default']
@@ -22,6 +32,7 @@ interface _GlobalComponents {
   UiSection: typeof import("../../components/UiSection.vue")['default']
   UiStars: typeof import("../../components/UiStars.vue")['default']
   UiTopbar: typeof import("../../components/UiTopbar.vue")['default']
+  WinsSlider: typeof import("../../components/WinsSlider.vue")['default']
   NuxtWelcome: typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']
   NuxtLayout: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
   NuxtErrorBoundary: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
@@ -46,6 +57,16 @@ interface _GlobalComponents {
   Body: typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Body']
   NuxtIsland: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-island")['default']
   LazyAppHero: LazyComponent<typeof import("../../components/AppHero.vue")['default']>
+  LazyCheckoutPanel: LazyComponent<typeof import("../../components/CheckoutPanel.vue")['default']>
+  LazyDivisionSelector: LazyComponent<typeof import("../../components/DivisionSelector.vue")['default']>
+  LazyGamesSlider: LazyComponent<typeof import("../../components/GamesSlider.vue")['default']>
+  LazyLpStepper: LazyComponent<typeof import("../../components/LpStepper.vue")['default']>
+  LazyNormalsSlider: LazyComponent<typeof import("../../components/NormalsSlider.vue")['default']>
+  LazyPriceSummary: LazyComponent<typeof import("../../components/PriceSummary.vue")['default']>
+  LazyPurchaseTabs: LazyComponent<typeof import("../../components/PurchaseTabs.vue")['default']>
+  LazyRankSelector: LazyComponent<typeof import("../../components/RankSelector.vue")['default']>
+  LazyTierSelect: LazyComponent<typeof import("../../components/TierSelect.vue")['default']>
+  LazyToggleSwitch: LazyComponent<typeof import("../../components/ToggleSwitch.vue")['default']>
   LazyUiFaq: LazyComponent<typeof import("../../components/UiFaq.vue")['default']>
   LazyUiFeatureCard: LazyComponent<typeof import("../../components/UiFeatureCard.vue")['default']>
   LazyUiFooter: LazyComponent<typeof import("../../components/UiFooter.vue")['default']>
@@ -53,6 +74,7 @@ interface _GlobalComponents {
   LazyUiSection: LazyComponent<typeof import("../../components/UiSection.vue")['default']>
   LazyUiStars: LazyComponent<typeof import("../../components/UiStars.vue")['default']>
   LazyUiTopbar: LazyComponent<typeof import("../../components/UiTopbar.vue")['default']>
+  LazyWinsSlider: LazyComponent<typeof import("../../components/WinsSlider.vue")['default']>
   LazyNuxtWelcome: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
   LazyNuxtLayout: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
   LazyNuxtErrorBoundary: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>
