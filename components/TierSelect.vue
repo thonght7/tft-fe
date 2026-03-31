@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { TierName, TierOption } from '~/utils/rankTiers'
 
 const props = defineProps<{
   modelValue: TierName
   options: TierOption[]
   isDisabled?: (tier: TierName) => boolean
+  columns?: number
 }>()
 
 const emit = defineEmits<{
@@ -28,18 +30,21 @@ function emblemSrc(tier: TierName): string {
       return '/emblems/diamond.png'
     case 'Master':
       return '/emblems/master.png'
-    case 'Grandmaster':
-      return '/emblems/grandmaster.png'
-    case 'Challenger':
-      return '/emblems/challenger.png'
     default:
       return '/emblems/iron.png'
   }
 }
+
+const gridStyle = computed(() => {
+  const cols = props.columns ?? 4
+  return {
+    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`
+  }
+})
 </script>
 
 <template>
-  <div class="tierGrid">
+  <div class="tierGrid" :style="gridStyle">
     <button
       v-for="t in props.options"
       :key="t.id"
@@ -56,12 +61,12 @@ function emblemSrc(tier: TierName): string {
 </template>
 
 <style scoped>
-.tierGrid{display:grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap:10px}
+.tierGrid{display:grid; gap:10px}
 @media (max-width: 1100px){
   .tierGrid{grid-template-columns: repeat(4, minmax(0,1fr))}
 }
 @media (max-width: 900px){
-  .tierGrid{grid-template-columns: repeat(3, minmax(0,1fr))}
+  .tierGrid{grid-template-columns: repeat(2, minmax(0,1fr))}
 }
 
 .tierBtn{

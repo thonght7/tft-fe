@@ -11,6 +11,7 @@ const props = defineProps<{
   modelValue: Rank
   disabledBelowTier?: number | null
   hideDivisions?: boolean
+  columns?: number
 }>()
 
 const emit = defineEmits<{
@@ -22,11 +23,23 @@ function isDisabled(rank: Rank): boolean {
   return tierOf(rank) <= props.disabledBelowTier
 }
 
+const tierOptionsForRankSelector = computed(() => {
+  // If we hide divisions, we want one representative per tier.
+  // Placements needs Master+ tiers (Master/Grandmaster/Challenger) even if Division/Wins hide them.
+  if (!props.hideDivisions) return TIER_OPTIONS as any
+
+  return [
+    ...TIER_OPTIONS,
+    { id: 'Grandmaster', label: 'Grandmaster', backendPrefix: 'Đại Cao Thủ', hasDivisions: false },
+    { id: 'Challenger', label: 'Challenger', backendPrefix: 'Thách Đấu', hasDivisions: false }
+  ] as any
+})
+
 // When hideDivisions is true, show one representative rank per tier (e.g. 'Đồng IV' for Bronze)
 const displayRanks = computed(() => {
   if (!props.hideDivisions) return RANKS
 
-  return TIER_OPTIONS.map((t) => {
+  return tierOptionsForRankSelector.value.map((t: any) => {
     if (!t.hasDivisions) {
       const r = RANKS.find((x) => x.key === (t.backendPrefix as Rank))
       if (r) return r
@@ -45,14 +58,14 @@ const displayRanks = computed(() => {
 const selectedKey = computed<Rank>(() => {
   if (!props.hideDivisions) return props.modelValue
   // If modelValue already matches a representative entry, return it
-  const rep = displayRanks.value.find((r) => r.key === props.modelValue)
+  const rep = displayRanks.value.find((r: (typeof RANKS)[number]) => r.key === props.modelValue)
   if (rep) return rep.key
 
   // Map divisional ranks like 'Đồng I' -> representative 'Đồng IV'
   const match = String(props.modelValue).match(/^(Sắt|Đồng|Bạc|Vàng|Bạch Kim|Kim Cương|Cao Thủ|Đại Cao Thủ|Thách Đấu)/)
   if (match) {
     const vi = match[1]
-    const tierOpt = TIER_OPTIONS.find((t) => t.backendPrefix === vi)
+    const tierOpt = tierOptionsForRankSelector.value.find((t: any) => t.backendPrefix === vi)
     if (tierOpt) {
       if (!tierOpt.hasDivisions) return (tierOpt.backendPrefix as Rank)
       return (`${tierOpt.backendPrefix} IV` as Rank)
@@ -60,6 +73,13 @@ const selectedKey = computed<Rank>(() => {
   }
 
   return props.modelValue
+})
+
+const gridStyle = computed(() => {
+  const cols = props.columns ?? 4
+  return {
+    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`
+  }
 })
 </script>
 
@@ -70,7 +90,7 @@ const selectedKey = computed<Rank>(() => {
       <div class="help">Click to select</div>
     </div>
 
-    <div class="gridRanks">
+    <div class="gridRanks" :style="gridStyle">
       <button
         v-for="r in displayRanks"
         :key="r.key"
@@ -91,7 +111,7 @@ const selectedKey = computed<Rank>(() => {
 
 <style scoped>
 .top{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom: 12px}
-.gridRanks{display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px}
+.gridRanks{display:grid; gap:10px}
 @media (max-width: 900px){
   .gridRanks{grid-template-columns: repeat(2, minmax(0,1fr))}
 }

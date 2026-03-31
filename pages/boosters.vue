@@ -9,7 +9,11 @@ const errorMsg = ref<string | null>(null)
 
 onMounted(async () => {
   try {
-    boosters.value = await fetch<BoosterProfileResponse[]>('/api/boosters')
+    const list = await fetch<BoosterProfileResponse[]>('/api/boosters', {
+      query: { status: 'ACTIVE' }
+    })
+
+    boosters.value = list.filter((b) => String(b.status || '').toUpperCase() === 'ACTIVE')
   } catch (e: unknown) {
     const err = e as { data?: { message?: string } }
     errorMsg.value = err?.data?.message ?? 'Failed to load boosters'

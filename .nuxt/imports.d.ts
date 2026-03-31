@@ -42,4 +42,3 @@ export { RANKS, rankLabel } from '../utils/ranks';
 export { useAuthStore } from '../stores/auth';
 export { useBoostPurchaseStore, LpBracket, ServerRegion, AvgLpPerWin, MasterLpRange } from '../stores/boostPurchase';
 export { defineStore, acceptHMRUpdate, usePinia, storeToRefs } from '../node_modules/@pinia/nuxt/dist/runtime/composables';
-export { useNuxtDevTools } from '../node_modules/@nuxt/devtools/dist/runtime/use-nuxt-devtools';

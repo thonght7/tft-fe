@@ -12,15 +12,29 @@ export type RankTierKey =
   | 'grandmaster'
   | 'challenger'
 
+function normalizeRankKey(rank: Rank): string {
+  return String(rank ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
 export function tierKeyFromRank(rank: Rank): RankTierKey {
-  if (rank.startsWith('Sắt')) return 'iron'
-  if (rank.startsWith('Đồng')) return 'bronze'
-  if (rank.startsWith('Bạc')) return 'silver'
-  if (rank.startsWith('Vàng')) return 'gold'
-  if (rank.startsWith('Bạch Kim')) return 'platinum'
-  if (rank.startsWith('Kim Cương')) return 'diamond'
-  if (rank === 'Cao Thủ') return 'master'
-  if (rank === 'Đại Cao Thủ') return 'grandmaster'
+  const r = normalizeRankKey(rank)
+
+  // Support Vietnamese + English labels (after formatRankShort)
+  if (r.startsWith('sắt') || r.startsWith('iron')) return 'iron'
+  if (r.startsWith('đồng') || r.startsWith('bronze')) return 'bronze'
+
+  // IMPORTANT: check platinum first so corrupted strings don't match 'bạc' accidentally.
+  if (r.startsWith('bạch kim') || r.startsWith('platinum')) return 'platinum'
+
+  if (r.startsWith('bạc') || r.startsWith('silver')) return 'silver'
+  if (r.startsWith('vàng') || r.startsWith('gold')) return 'gold'
+  if (r.startsWith('kim cương') || r.startsWith('diamond')) return 'diamond'
+
+  if (r === 'cao thủ' || r === 'master') return 'master'
+  if (r === 'đại cao thủ' || r === 'grandmaster') return 'grandmaster'
   return 'challenger'
 }
 

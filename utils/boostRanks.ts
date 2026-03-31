@@ -43,14 +43,35 @@ export function clampTargetRank(current: Rank, desired: Rank): Rank {
 }
 
 export function formatRankShort(rank: Rank): string {
-  return rank
-    .replace('Sắt', 'Iron')
-    .replace('Đồng', 'Bronze')
-    .replace('Bạc', 'Silver')
-    .replace('Vàng', 'Gold')
-    .replace('Bạch Kim', 'Platinum')
-    .replace('Kim Cương', 'Diamond')
-    .replace('Cao Thủ', 'Master')
-    .replace('Đại Cao Thủ', 'Grandmaster')
-    .replace('Thách Đấu', 'Challenger')
+  const r = String(rank ?? '').trim()
+
+  // Master+ exact matches
+  if (r === 'Cao Thủ') return 'Master'
+  if (r === 'Đại Cao Thủ') return 'Grandmaster'
+  if (r === 'Thách Đấu') return 'Challenger'
+
+  // Divisional tiers
+  const m = r.match(/^(Sắt|Đồng|Bạc|Vàng|Bạch Kim|Kim Cương)\s+(IV|III|II|I)$/)
+  if (m) {
+    const viTier = m[1]
+    const div = m[2]
+
+    const enTier =
+      viTier === 'Sắt'
+        ? 'Iron'
+        : viTier === 'Đồng'
+          ? 'Bronze'
+          : viTier === 'Bạc'
+            ? 'Silver'
+            : viTier === 'Vàng'
+              ? 'Gold'
+              : viTier === 'Bạch Kim'
+                ? 'Platinum'
+                : 'Diamond'
+
+    return `${enTier} ${div}`
+  }
+
+  // Fallback: return as-is (avoid creating weird strings)
+  return r
 }

@@ -2,6 +2,7 @@
 import type { PurchaseTab } from '~/utils/boostPricing'
 import type { TierName, Division } from '~/utils/rankTiers'
 import { TIER_OPTIONS, tierIndex, divisionIndex } from '~/utils/rankTiers'
+import type { OrderResponse } from '~/types/domain'
 
 const store = useBoostPurchaseStore()
 
@@ -27,9 +28,38 @@ function onTabChange(v: PurchaseTab) {
   store.setTab(v)
 }
 
-function createDraftCheckout() {
-  // UI-only (no API calls for now).
-  alert('Checkout (UI only).')
+async function createDraftCheckout() {
+  if (!store.price) {
+    alert('Chưa có giá. Vui lòng thử lại.')
+    return
+  }
+
+  const api = useApi()
+
+  try {
+    const res = await api.fetch<OrderResponse>('/api/orders', {
+      method: 'POST',
+      body: {
+        currentRank: store.tab === 'placements' ? store.lastSplitRank : store.currentRank,
+        targetRank: store.desiredRank,
+        price: store.price.finalPrice
+      }
+    })
+
+    await navigateTo(`/orders/${res.id}`)
+  } catch (e: any) {
+    const status = e?.status || e?.data?.statusCode
+    const msg = e?.data?.message || e?.message || 'Tạo order thất bại'
+
+    if (status === 401) {
+      const route = useRoute()
+      const redirect = encodeURIComponent(route.fullPath)
+      await navigateTo(`/login?redirect=${redirect}`)
+      return
+    }
+
+    alert(msg)
+  }
 }
 
 const currentTierIdx = computed(() => tierIndex(store.currentTier))
@@ -45,6 +75,7 @@ function isDesiredTierDisabled(tier: TierName) {
     return tier === store.currentTier
   }
 
+  // For Master+ tiers, allow choosing the same tier (Master -> Master) and validate via LP.
   return false
 }
 
@@ -56,10 +87,10 @@ function isDesiredDivisionDisabled(div: Division): boolean {
 }
 
 function onApplyDiscount(code: string) {
-  // UI-only for now.
-  if (!code) return
-  alert(`Apply discount: ${code}`)
+  store.setDiscountCode(code)
 }
+
+const selectedPaymentMethod = ref<'bank_transfer' | 'vnpay'>('bank_transfer')
 </script>
 
 <template>
@@ -79,6 +110,7 @@ function onApplyDiscount(code: string) {
           title="Last Split Rank"
           :model-value="store.lastSplitRank"
           :hide-divisions="true"
+          :columns="5"
           @update:model-value="store.setLastSplitRank"
         />
 
@@ -109,7 +141,7 @@ function onApplyDiscount(code: string) {
             <div class="d">Select your current tier and division.</div>
           </div>
 
-          <TierSelect :model-value="store.currentTier" :options="TIER_OPTIONS" @update:model-value="store.setCurrentTier" />
+          <TierSelect :model-value="store.currentTier" :options="TIER_OPTIONS" :columns="4" @update:model-value="store.setCurrentTier" />
 
           <div class="row" style="margin-top: 14px">
             <div v-if="store.isCurrentMasterPlus" style="flex:1">
@@ -205,7 +237,7 @@ function onApplyDiscount(code: string) {
               <div class="d">Select your current tier and division.</div>
             </div>
 
-            <TierSelect :model-value="store.currentTier" :options="TIER_OPTIONS" @update:model-value="store.setCurrentTier" />
+            <TierSelect :model-value="store.currentTier" :options="TIER_OPTIONS" :columns="4" @update:model-value="store.setCurrentTier" />
 
             <div style="margin-top: 12px">
               <DivisionSelector v-if="!store.isCurrentMasterPlus" :model-value="store.currentDivision" @update:model-value="store.setCurrentDivision" />
@@ -216,9 +248,9 @@ function onApplyDiscount(code: string) {
                 <template v-if="!store.isCurrentMasterPlus">
                   <div class="label">Current LP range</div>
                   <select
-                    :value="store.masterLpRange"
+                    :value="store.lp"
                     class="input"
-                    @change="store.setMasterLpRange(($event.target as HTMLSelectElement).value as any)"
+                    @change="store.lp = ($event.target as HTMLSelectElement).value as any; store.recalcPrice()"
                   >
                     <option value="0-20">0-20 LP</option>
                     <option value="21-40">21-40 LP</option>
@@ -247,7 +279,7 @@ function onApplyDiscount(code: string) {
               <div class="t">Desired Rank</div>
               <div class="d">Select your desired tier and division.</div>
             </div>
-            <TierSelect :model-value="store.desiredTier" :options="TIER_OPTIONS" :is-disabled="isDesiredTierDisabled" @update:model-value="store.setDesiredTier" />
+            <TierSelect :model-value="store.desiredTier" :options="TIER_OPTIONS" :columns="4" :is-disabled="isDesiredTierDisabled" @update:model-value="store.setDesiredTier" />
 
             <div class="halfRow" style="margin-top: 12px">
               <div>
@@ -257,7 +289,7 @@ function onApplyDiscount(code: string) {
                   :is-disabled="isDesiredDivisionDisabled"
                   @update:model-value="store.setDesiredDivision"
                 />
-                <LpStepper v-else :model-value="store.desiredLp" label="Desired LP" :min="0" :max="1400" :step="1" @update:model-value="store.setDesiredLp" />
+                <LpStepper v-else-if="store.showDesiredLpInput" :model-value="store.desiredLp" label="Desired LP" :min="0" :max="1400" :step="1" @update:model-value="store.setDesiredLp" />
               </div>
               <div />
             </div>
@@ -277,14 +309,18 @@ function onApplyDiscount(code: string) {
       :price="store.price"
       :can-checkout="(store.tab === 'wins' ? store.winsCount > 0 : store.tab === 'placements' ? store.placementsGames > 0 : store.tab === 'normals' ? store.normalsGames > 0 : store.isValid) && !!store.price"
       :error-text="errorText"
+      :discount-error="store.discountError"
       :show-queue-and-addons="store.tab === 'division'"
       :queue="store.queue"
       :options="store.options"
+      :selected-payment-method="selectedPaymentMethod"
+      @update:payment-method="selectedPaymentMethod = $event"
       @update:queue="store.setQueue"
       @toggle-option="store.toggleOption"
       @apply-discount="onApplyDiscount"
       @checkout="createDraftCheckout"
-      @paypal="createDraftCheckout"
+      @pay:bank-transfer="createDraftCheckout"
+      @pay:vnpay="createDraftCheckout"
     />
   </div>
 </template>

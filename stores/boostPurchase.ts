@@ -2,11 +2,11 @@ import { defineStore } from 'pinia'
 import type { Rank } from '~/types/domain'
 import { compareRanks } from '~/utils/boostRanks'
 import type { BoostOptions, PriceBreakdown, PurchaseTab, QueueMode } from '~/utils/boostPricing'
-import { computePrice } from '~/utils/boostPricing'
 import type { Division, TierName } from '~/utils/rankTiers'
 import { TIER_OPTIONS, tierDivisionToRank, tierIndex, divisionIndex } from '~/utils/rankTiers'
+import type { CalculatePriceRequestDto, CalculatePriceResponseDto, PricingPurchaseType } from '~/types/pricing'
 
-export type LpBracket = '0-20' | '20-40' | '40-60' | '60-80' | '80-100'
+export type LpBracket = '0-20' | '21-40' | '41-60' | '61-80' | '81-100'
 export type ServerRegion = 'Vietnam' | 'NA' | 'EUW' | 'EUNE' | 'KR'
 export type AvgLpPerWin = '18-23' | '23-28' | '28-33'
 export type MasterLpRange = '0-20' | '21-40' | '41-60' | '61-80' | '81-100' | '1001+'
@@ -47,6 +47,7 @@ export const useBoostPurchaseStore = defineStore('boostPurchase', {
     } as BoostOptions,
 
     price: null as PriceBreakdown | null,
+    lastGoodPrice: null as PriceBreakdown | null,
 
     currentLp: 0,
     desiredLp: 50,
@@ -60,6 +61,11 @@ export const useBoostPurchaseStore = defineStore('boostPurchase', {
     placementsGames: 5,
 
     normalsGames: 10,
+
+    discountCode: '' as string,
+    discountError: null as string | null,
+
+    _recalcTimer: null as ReturnType<typeof setTimeout> | null,
   }),
   getters: {
     currentRank(s): Rank {
@@ -73,25 +79,44 @@ export const useBoostPurchaseStore = defineStore('boostPurchase', {
       return tierDivisionToRank(s.desiredTier, div)
     },
     isValid(): boolean {
+      // For Master+ -> Master+ orders, LP decides validity.
+      if (this.isCurrentMasterPlus && this.isDesiredMasterPlus) {
+        return this.desiredLp > this.currentLp
+      }
       return compareRanks(this.desiredRank, this.currentRank) > 0
     },
     validationMessage(): string | null {
+      if (this.isCurrentMasterPlus && this.isDesiredMasterPlus) {
+        if (this.desiredLp <= this.currentLp) return 'Desired LP must be higher than current LP.'
+        return null
+      }
       if (compareRanks(this.desiredRank, this.currentRank) <= 0) return 'Desired rank must be higher than current rank.'
       return null
     },
+    pricingError(): string | null {
+      // Prefer showing discount error under the discount box, but still expose if needed.
+      return this.discountError
+    },
     isCurrentMasterPlus(): boolean {
-      return ['Master', 'Grandmaster', 'Challenger'].includes(this.currentTier)
+      return ['Master'].includes(this.currentTier)
     },
     isDesiredMasterPlus(): boolean {
-      return ['Master', 'Grandmaster', 'Challenger'].includes(this.desiredTier)
+      return ['Master'].includes(this.desiredTier)
     },
     lastSplitRank(): Rank {
       return this.lastSplitRankKey
-    }
+    },
+    showDesiredLpInput(): boolean {
+      return this.isCurrentMasterPlus && this.isDesiredMasterPlus
+    },
   },
   actions: {
     setTab(tab: PurchaseTab) {
       this.tab = tab
+      // Avoid showing stale price from previous tab while the new request is in-flight.
+      this.price = null
+      this.discountError = null
+      this.recalcPrice()
     },
     normalizeDesired() {
       // Ensure desired rank is strictly higher than current.
@@ -135,7 +160,8 @@ export const useBoostPurchaseStore = defineStore('boostPurchase', {
     nextTier(tier: TierName): TierName | null {
       const idx = tierIndex(tier)
       if (idx < 0) return null
-      return (idx + 1 < 9 ? (['Iron','Bronze','Silver','Gold','Platinum','Diamond','Master','Grandmaster','Challenger'][idx + 1] as TierName) : null)
+      const order: TierName[] = ['Iron', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master']
+      return idx + 1 < order.length ? order[idx + 1] : null
     },
     setCurrentTier(tier: TierName) {
       this.currentTier = tier
@@ -145,9 +171,8 @@ export const useBoostPurchaseStore = defineStore('boostPurchase', {
         // Entering Master+ tiers: keep LP input and ensure currentLp has a sane default.
         this.currentLp = Math.max(0, Math.min(1400, Math.round(this.currentLp ?? 0)))
       } else {
-        // Non-Master+ tiers: default LP range to the first option.
-        this.masterLpRange = '0-20'
-        this.currentLp = lpForMasterRange(this.masterLpRange)
+        // Non-Master+ tiers: default LP bracket to the first option.
+        this.lp = '0-20'
       }
       this.normalizeDesired()
       this.recalcPrice()
@@ -159,6 +184,13 @@ export const useBoostPurchaseStore = defineStore('boostPurchase', {
     },
     setDesiredTier(tier: TierName) {
       this.desiredTier = tier
+
+      // If user targets Master while still below Master, we don't ask for desired LP.
+      // Keep desired LP fixed at 0.
+      if (this.isDesiredMasterPlus && !this.isCurrentMasterPlus) {
+        this.desiredLp = 0
+      }
+
       this.normalizeDesired()
       this.recalcPrice()
     },
@@ -182,7 +214,8 @@ export const useBoostPurchaseStore = defineStore('boostPurchase', {
         }
       }
 
-      this.recalcPrice()
+      // Debounce to avoid spamming backend while user taps +/-.
+      this.recalcPriceDebounced()
     },
     setDesiredLp(v: number) {
       const next = Math.max(0, Math.min(1400, Math.round(v)))
@@ -195,7 +228,8 @@ export const useBoostPurchaseStore = defineStore('boostPurchase', {
         this.desiredLp = next
       }
 
-      this.recalcPrice()
+      // Debounce to avoid spamming backend while user taps +/-.
+      this.recalcPriceDebounced()
     },
     setQueue(queue: QueueMode) {
       this.queue = queue
@@ -236,58 +270,190 @@ export const useBoostPurchaseStore = defineStore('boostPurchase', {
       this.normalsGames = Math.max(1, Math.min(300, Math.round(v)))
       this.recalcPrice()
     },
-    recalcPrice() {
-      if (this.tab === 'normals') {
-        // Mock: normals pricing
-        const basePerGame = 12_000
-        const base = this.normalsGames * basePerGame
-        const mult = (this.options.priority ? 1.25 : 1) * (this.options.stream ? 1.15 : 1)
-        this.price = {
-          basePrice: base,
-          finalPrice: Math.round(base * mult),
-          priorityMultiplier: this.options.priority ? 1.25 : 1,
-          streamMultiplier: this.options.stream ? 1.15 : 1,
-          percentIncreaseTotal: Math.round((mult - 1) * 100)
-        }
-        return
+    setDiscountCode(code: string) {
+      this.discountCode = code
+      this.discountError = null
+      this.recalcPrice()
+    },
+
+    recalcPriceDebounced() {
+      if (this._recalcTimer) clearTimeout(this._recalcTimer)
+      this._recalcTimer = setTimeout(() => {
+        this._recalcTimer = null
+        void this.recalcPrice()
+      }, 250)
+    },
+
+    async recalcPrice() {
+      const api = useApi()
+
+      const purchaseType: PricingPurchaseType =
+        this.tab === 'division' ? 'DIVISION' : this.tab === 'wins' ? 'WINS' : this.tab === 'placements' ? 'PLACEMENTS' : 'NORMALS'
+
+      const req: CalculatePriceRequestDto = {
+        game: 'tft_ranked',
+        purchaseType,
+        currentRank: purchaseType === 'DIVISION' ? this.currentRank : null,
+        targetRank: purchaseType === 'DIVISION' ? this.desiredRank : null,
+        quantity:
+          purchaseType === 'WINS'
+            ? this.winsCount
+            : purchaseType === 'PLACEMENTS'
+              ? this.placementsGames
+              : purchaseType === 'NORMALS'
+                ? this.normalsGames
+                : null,
+
+        // LP affects pricing for the first step.
+        // For Master+ -> Master+ orders, the first step is at 'currentRank' (Master+) and the LP context should be the LP
+        // the user is currently at (the input shown under Desired LP in the UI is the user's current LP in Master).
+        currentLpBracket: purchaseType === 'DIVISION' && !this.isCurrentMasterPlus ? this.lp : null,
+        currentLp: purchaseType === 'DIVISION' && this.isCurrentMasterPlus ? this.currentLp : null,
+        desiredLp: purchaseType === 'DIVISION' && this.isCurrentMasterPlus ? this.desiredLp : null,
+
+        options: {
+          priority: this.options.priority,
+          stream: this.options.stream,
+          discountCode: this.discountCode?.trim() ? this.discountCode.trim() : null,
+          queue: this.queue
+        },
+
+        lastSplitRank: purchaseType === 'PLACEMENTS' ? this.lastSplitRank : null,
       }
 
-      if (this.tab === 'placements') {
-        // Mock: placements pricing (max 5 games)
-        const basePerGame = 25_000
-        const base = this.placementsGames * basePerGame
-        const mult = (this.options.priority ? 1.25 : 1) * (this.options.stream ? 1.15 : 1)
-        this.price = {
-          basePrice: base,
-          finalPrice: Math.round(base * mult),
-          priorityMultiplier: this.options.priority ? 1.25 : 1,
-          streamMultiplier: this.options.stream ? 1.15 : 1,
-          percentIncreaseTotal: Math.round((mult - 1) * 100)
-        }
-        return
-      }
-
-      if (this.tab === 'wins') {
-        // Mock: wins pricing
-        const basePerWin = 40_000
-        const base = this.winsCount * basePerWin
-        const mult = (this.options.priority ? 1.25 : 1) * (this.options.stream ? 1.15 : 1)
-        this.price = {
-          basePrice: base,
-          finalPrice: Math.round(base * mult),
-          priorityMultiplier: this.options.priority ? 1.25 : 1,
-          streamMultiplier: this.options.stream ? 1.15 : 1,
-          percentIncreaseTotal: Math.round((mult - 1) * 100)
-        }
-        return
-      }
-
-      // Division pricing
-      if (!this.isValid) {
+      // Keep existing form validation for division.
+      if (purchaseType === 'DIVISION' && !this.isValid) {
         this.price = null
         return
       }
-      this.price = computePrice(this.currentRank, this.desiredRank, this.options)
+
+      try {
+        const res = await api.fetch<CalculatePriceResponseDto>('/api/pricing/calculate-price', {
+          method: 'POST',
+          auth: false,
+          body: req as unknown as Record<string, unknown>
+        })
+
+        this.discountError = null
+
+        const basePrice = Number(res.basePrice)
+        const finalPrice = Number(res.finalPrice)
+
+        // For UI breakdown.
+        const priorityMultiplier = this.options.priority ? 1.25 : 1
+        const streamMultiplier = this.options.stream ? 1.15 : 1
+        const queueMultiplier = this.queue === 'double_up' ? 1.2 : 1
+        const finalMult = priorityMultiplier * streamMultiplier * queueMultiplier
+
+        const nextPrice: PriceBreakdown = {
+          basePrice: Math.round(basePrice),
+          finalPrice: Math.round(finalPrice),
+          priorityMultiplier,
+          streamMultiplier,
+          percentIncreaseTotal: Math.round((finalMult - 1) * 100)
+        }
+
+        this.price = nextPrice
+        this.lastGoodPrice = nextPrice
+      } catch (e: any) {
+        const msg = e?.data?.message || e?.data?.error || e?.message
+        const code = e?.data?.code || e?.data?.errorCode
+
+        // Invalid discount code: show message and revert to original price by recalculating without the code.
+        if (code === 'DISCOUNT_CODE_INVALID') {
+          this.discountError = msg || 'Mã giảm giá không hợp lệ.'
+
+          // Keep the user's input, but our stored discountCode should not affect pricing while invalid.
+          const prev = this.discountCode
+          this.discountCode = ''
+
+          try {
+            const res2 = await api.fetch<CalculatePriceResponseDto>('/api/pricing/calculate-price', {
+              method: 'POST',
+              auth: false,
+              body: {
+                ...req,
+                options: { ...req.options, discountCode: null }
+              } as unknown as Record<string, unknown>
+            })
+
+            const basePrice2 = Number(res2.basePrice)
+            const finalPrice2 = Number(res2.finalPrice)
+
+            const priorityMultiplier = this.options.priority ? 1.25 : 1
+            const streamMultiplier = this.options.stream ? 1.15 : 1
+            const finalMult = priorityMultiplier * streamMultiplier
+
+            const nextPrice2: PriceBreakdown = {
+              basePrice: Math.round(basePrice2),
+              finalPrice: Math.round(finalPrice2),
+              priorityMultiplier,
+              streamMultiplier,
+              percentIncreaseTotal: Math.round((finalMult - 1) * 100)
+            }
+
+            this.price = nextPrice2
+            this.lastGoodPrice = nextPrice2
+          } catch (e2: any) {
+            // If fallback calc fails, at least don't keep the discounted price.
+            this.price = null
+          } finally {
+            // Restore what user typed in the input field (UI uses store.discountCode).
+            this.discountCode = prev
+          }
+
+          return
+        }
+
+        if (this.discountCode?.trim()) {
+          this.discountError = 'Mã giảm giá không đúng hoặc đã hết hạn.'
+
+          // Revert pricing to non-discounted when code fails.
+          const prev = this.discountCode
+          this.discountCode = ''
+
+          try {
+            const res2 = await api.fetch<CalculatePriceResponseDto>('/api/pricing/calculate-price', {
+              method: 'POST',
+              auth: false,
+              body: {
+                ...req,
+                options: { ...req.options, discountCode: null }
+              } as unknown as Record<string, unknown>
+            })
+
+            const basePrice2 = Number(res2.basePrice)
+            const finalPrice2 = Number(res2.finalPrice)
+
+            const priorityMultiplier = this.options.priority ? 1.25 : 1
+            const streamMultiplier = this.options.stream ? 1.15 : 1
+            const finalMult = priorityMultiplier * streamMultiplier
+
+            const nextPrice2: PriceBreakdown = {
+              basePrice: Math.round(basePrice2),
+              finalPrice: Math.round(finalPrice2),
+              priorityMultiplier,
+              streamMultiplier,
+              percentIncreaseTotal: Math.round((finalMult - 1) * 100)
+            }
+
+            this.price = nextPrice2
+            this.lastGoodPrice = nextPrice2
+          } catch (e2: any) {
+            this.price = null
+          } finally {
+            this.discountCode = prev
+          }
+
+          return
+        }
+
+        // Other errors: pricing really failed.
+        this.discountError = null
+        this.price = null
+        // eslint-disable-next-line no-console
+        console.warn('Failed to calculate price', e)
+      }
     }
   }
 })

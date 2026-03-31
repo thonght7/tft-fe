@@ -1,6 +1,6 @@
 import type { Rank } from '~/types/domain'
 
-export type TierName = 'Iron' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond' | 'Master' | 'Grandmaster' | 'Challenger'
+export type TierName = 'Iron' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond' | 'Master'
 export type Division = 'IV' | 'III' | 'II' | 'I'
 
 export interface TierOption {
@@ -18,9 +18,7 @@ export const TIER_OPTIONS: TierOption[] = [
   { id: 'Gold', label: 'Gold', backendPrefix: 'Vàng', hasDivisions: true },
   { id: 'Platinum', label: 'Platinum', backendPrefix: 'Bạch Kim', hasDivisions: true },
   { id: 'Diamond', label: 'Diamond', backendPrefix: 'Kim Cương', hasDivisions: true },
-  { id: 'Master', label: 'Master', backendPrefix: 'Cao Thủ', hasDivisions: false },
-  { id: 'Grandmaster', label: 'Grandmaster', backendPrefix: 'Đại Cao Thủ', hasDivisions: false },
-  { id: 'Challenger', label: 'Challenger', backendPrefix: 'Thách Đấu', hasDivisions: false }
+  { id: 'Master', label: 'Master', backendPrefix: 'Cao Thủ', hasDivisions: false }
 ]
 
 export const DIVISION_OPTIONS: { id: Division; label: Division }[] = [
@@ -37,9 +35,7 @@ export const TIER_ORDER: TierName[] = [
   'Gold',
   'Platinum',
   'Diamond',
-  'Master',
-  'Grandmaster',
-  'Challenger'
+  'Master'
 ]
 
 export function rankToTierDivision(rank: Rank): { tier: TierName; division: Division | null } {
@@ -51,10 +47,9 @@ export function rankToTierDivision(rank: Rank): { tier: TierName; division: Divi
     if (tier) return { tier, division: div }
   }
 
-  // Non-divisional
-  if (rank === 'Cao Thủ') return { tier: 'Master', division: null }
-  if (rank === 'Đại Cao Thủ') return { tier: 'Grandmaster', division: null }
-  return { tier: 'Challenger', division: null }
+  // Non-divisional (treat any Master+ as Master for UI selection)
+  if (rank === 'Cao Thủ' || rank === 'Đại Cao Thủ' || rank === 'Thách Đấu') return { tier: 'Master', division: null }
+  return { tier: 'Master', division: null }
 }
 
 export function tierDivisionToRank(tier: TierName, division: Division | null): Rank {

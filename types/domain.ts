@@ -46,7 +46,7 @@ export type Rank =
   | 'Đại Cao Thủ'
   | 'Thách Đấu'
 
-export type BoosterStatus = 'AVAILABLE' | 'BUSY'
+export type BoosterStatus = 'ACTIVE' | 'INACTIVE'
 
 export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 

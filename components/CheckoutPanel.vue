@@ -12,6 +12,7 @@ const props = defineProps<{
   price: PriceBreakdown | null
   canCheckout: boolean
   errorText?: string | null
+  discountError?: string | null
   tab?: 'division' | 'wins' | 'placements' | 'normals'
   winsCount?: number
   gamesCount?: number
@@ -24,19 +25,27 @@ const props = defineProps<{
   queue?: QueueMode
   options?: BoostOptions
   showQueueAndAddons?: boolean
+
+  // Payment method
+  selectedPaymentMethod?: 'bank_transfer' | 'vnpay'
 }>()
 
 const emit = defineEmits<{
-  (e: 'checkout' | 'paypal'): void
+  (e: 'checkout'): void
+  (e: 'pay:vnpay'): void
+  (e: 'pay:bankTransfer'): void
   (e: 'update:queue', v: QueueMode): void
   (e: 'toggleOption', key: keyof BoostOptions): void
   (e: 'applyDiscount', code: string): void
+  (e: 'update:paymentMethod', v: 'bank_transfer' | 'vnpay'): void
 }>()
 
 const discountOpen = ref(false)
 const discountCode = ref('')
+const discountSuccess = ref<string | null>(null)
 
 function onApplyDiscount() {
+  discountSuccess.value = null
   emit('applyDiscount', discountCode.value.trim())
 }
 
@@ -50,6 +59,26 @@ function formatRankWithLp(rank: Rank, lp?: number) {
   if (lp == null) return base
   return `${base} (${lp} LP)`
 }
+
+watch(
+  () => props.discountError,
+  (err) => {
+    // If backend accepted the code (no error) and user has entered something, show a success message.
+    if (!err && discountCode.value.trim()) {
+      discountSuccess.value = 'Mã giảm giá đã được áp dụng!'
+    } else {
+      discountSuccess.value = null
+    }
+  }
+)
+
+watch(discountCode, () => {
+  // Clear success message as soon as user edits the code.
+  discountSuccess.value = null
+  // When user changes input, we keep the previous error hidden on UI until they press Apply again.
+  // Parent/store will reset discountError on apply.
+  // No-op here; this watch exists so it's easy to extend later.
+})
 </script>
 
 <template>
@@ -175,6 +204,12 @@ function formatRankWithLp(rank: Rank, lp?: number) {
         <input v-model="discountCode" class="input" placeholder="Enter code" />
         <button class="btn" type="button" @click="onApplyDiscount">Apply</button>
       </div>
+      <div v-if="discountOpen && discountSuccess" class="discountSuccess">
+        {{ discountSuccess }}
+      </div>
+      <div v-if="discountOpen && props.discountError" class="discountError">
+        {{ props.discountError }}
+      </div>
 
       <div class="divider" />
 
@@ -201,12 +236,45 @@ function formatRankWithLp(rank: Rank, lp?: number) {
       <button class="btn primary" style="width: 100%; margin-top: 12px" :disabled="!props.canCheckout" @click="emit('checkout')">
         Checkout
       </button>
-      <button class="btn" style="width: 100%; margin-top: 10px" :disabled="!props.canCheckout" @click="emit('paypal')">
-        Pay with PayPal
+
+      <div class="divider" style="margin: 14px 0" />
+
+      <div class="label">Pay with</div>
+      <div class="payWith" style="margin-top: 10px">
+        <button
+          class="payMethod"
+          :class="{ on: (props.selectedPaymentMethod ?? 'bank_transfer') === 'bank_transfer' }"
+          type="button"
+          @click="emit('update:paymentMethod', 'bank_transfer')"
+        >
+          <span class="radio" />
+          <span style="font-weight: 800">Chuyển khoản (VietQR)</span>
+          <span class="help" style="margin-left:auto">QR</span>
+        </button>
+
+        <button
+          class="payMethod"
+          :class="{ on: (props.selectedPaymentMethod ?? 'bank_transfer') === 'vnpay' }"
+          type="button"
+          @click="emit('update:paymentMethod', 'vnpay')"
+        >
+          <span class="radio" />
+          <span style="font-weight: 800">VNPay</span>
+          <span class="help" style="margin-left:auto">Redirect</span>
+        </button>
+      </div>
+
+      <button
+        class="btn"
+        style="width: 100%; margin-top: 12px"
+        :disabled="!props.canCheckout"
+        @click="(props.selectedPaymentMethod ?? 'bank_transfer') === 'vnpay' ? emit('pay:vnpay') : emit('pay:bankTransfer')"
+      >
+        Pay now →
       </button>
 
       <div class="help" style="margin-top: 10px">
-        Demo UI. Hook these buttons to your real payment flow later.
+        Sau khi tạo đơn, hệ thống sẽ chuyển bạn tới trang Order để thanh toán.
       </div>
     </div>
   </div>
@@ -257,6 +325,27 @@ function formatRankWithLp(rank: Rank, lp?: number) {
 }
 .chev{opacity:.7}
 .discountBody{display:grid; grid-template-columns: 1fr auto; gap:10px; margin-top: 10px}
+.discountError{margin-top:8px; color: rgba(255,77,77,.95); font-weight: 700; font-size: 13px}
+.discountSuccess{margin-top:8px; color: rgba(80, 220, 140, .95); font-weight: 700; font-size: 13px}
+
+.payWith{display:grid; gap:10px}
+.payMethod{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 14px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(40, 160, 255, .45);
+  background: rgba(255,255,255,.03);
+  color: var(--text);
+  cursor:pointer;
+}
+.payMethod:hover{background: rgba(255,255,255,.05)}
+.payMethod.on{border-color: rgba(40, 160, 255, .85); background: rgba(40, 160, 255, .08)}
+.radio{width: 14px; height:14px; border-radius:999px; border:2px solid rgba(40, 160, 255, .55); position: relative}
+.payMethod.on .radio{border-color: rgba(40, 160, 255, .95)}
+.payMethod.on .radio::after{content:''; position:absolute; inset:3px; border-radius:999px; background: rgba(40, 160, 255, .95)}
 
 .arrow.right{display:inline}
 @media (max-width: 900px){
